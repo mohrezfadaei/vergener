@@ -1,0 +1,91 @@
+schema-version: 1
+version:
+  initial: 1.0.0
+  anchor: refs/tags/v1.0.0
+defaults:
+  increment: Minor
+  unknown-commit: ignore
+  unknown-merge: error
+git:
+  traversal: first-parent
+  source-identity: merge-message
+  merge-message-formats:
+    gitlab: "^Merge branch '(?P<source>[^']+)' into '(?P<target>[^']+)'"
+  history:
+    shallow: error
+    missing-parent: error
+    octopus: error
+    squash: error
+    rebase: error
+tags:
+  discovery: anchor-only
+  create: false
+branches:
+  stable:
+    match: {exact: trunk}
+    priority: 100
+    increment: Minor
+    core: {source: releases}
+    prerelease: {enabled: false}
+    rules:
+      - id: release-integration
+        priority: 100
+        when: {event: merge, source: {roles: [integration]}}
+        actions:
+          - release: {increment: Inherit, boundary: source-tip}
+  integration:
+    match: {exact: integration}
+    priority: 100
+    inherits: stable
+    increment: Inherit
+    core: {source: next-release, of: stable, increment: Inherit}
+    prerelease:
+      enabled: true
+      label: preview
+      counter:
+        initial: 0
+        origin: {kind: release-boundary, branch: stable, projection: released-source-tip}
+        rules:
+          - id: per-feature
+            priority: 100
+            when: {all: [{event: merge}, {source: {roles: [work], pattern: '^feat/'}}]}
+            actions:
+              - increment-counter: {by: 1}
+        reset:
+          on: release
+          branch: stable
+          requires-source-role: integration
+          value: 0
+          preserve-pending-events: true
+  work:
+    match: {regex: '^(?P<kind>feat|ci)/(?P<name>.+)$'}
+    priority: 10
+    inherits: integration
+    increment: Inherit
+    core: {source: branch-core, of: integration}
+    prerelease:
+      enabled: true
+      label: '{kind}-{name}'
+      counter:
+        initial: 0
+        origin: {kind: fork, branch: integration, algorithm: common-first-parent}
+        rules:
+          - id: direct-commit
+            priority: 100
+            when: {event: commit}
+            actions:
+              - increment-counter: {by: 1}
+rules:
+  evaluation: first-match
+  scope-order: [branch, shared]
+  no-match: {commit: ignore, recognized-merge: ignore}
+  shared: []
+output:
+  default-format: json
+  metadata: []
+validation:
+  unknown-keys: error
+  ambiguous-branch-match: error
+  ambiguous-rule-priority: error
+  inheritance-cycle: error
+  label-collision: error

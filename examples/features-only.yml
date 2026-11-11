@@ -1,0 +1,15 @@
+extends: [../Vergener.yml]
+# Only feat/* merges affect beta; ci/* merges remain visible but ignored.
+branches:
+  develop:
+    prerelease:
+      counter:
+        rules:
+          - id: beta-per-feature-merge
+            priority: 100
+            when:
+              all:
+                - {event: merge}
+                - {source: {roles: [work], pattern: '^feat/'}}
+            actions:
+              - increment-counter: {by: 1}

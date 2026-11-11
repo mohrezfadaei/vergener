@@ -1,0 +1,5 @@
+extends: [../Vergener.yml]
+# Major stable releases, and develop projects a Major core instead of Patch.
+branches:
+  main:
+    increment: Major

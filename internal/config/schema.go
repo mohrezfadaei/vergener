@@ -1,0 +1,32 @@
+package config
+
+// Schema documents the supported public configuration shape. Validation is additionally performed by Load.
+const Schema = `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VerGener configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema-version", "version", "defaults", "git", "tags", "branches", "rules", "output"],
+  "properties": {
+    "schema-version": {"const": 1},
+    "extends": {"type": "array", "items": {"type": "string"}},
+    "profiles": {"type": "object", "additionalProperties": {"type": "object"}},
+    "version": {"type": "object", "additionalProperties": false, "required": ["initial", "anchor"], "properties": {"initial": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}, "anchor": {"type": "string"}, "develop-anchor": {"type": "string"}}},
+    "defaults": {"type": "object", "additionalProperties": false, "required": ["increment"], "properties": {"increment": {"enum": ["Major", "Minor", "Patch", "None"]}, "unknown-commit": {"enum": ["ignore", "error"]}, "unknown-merge": {"enum": ["ignore", "error"]}}},
+    "git": {"type": "object", "additionalProperties": false, "properties": {"traversal": {"const": "first-parent"}, "source-identity": {"const": "merge-message"}, "merge-message-formats": {"type": "object", "additionalProperties": {"type": "string"}}, "history": {"type": "object", "additionalProperties": false, "properties": {"shallow": {"const": "error"}, "missing-parent": {"const": "error"}, "octopus": {"const": "error"}, "squash": {"const": "error"}, "rebase": {"const": "error"}}}}},
+    "tags": {"type": "object", "additionalProperties": false, "properties": {"discovery": {"const": "anchor-only"}, "create": {"const": false}}},
+    "branches": {"type": "object", "additionalProperties": {"$ref": "#/$defs/branch"}},
+    "rule-sets": {"type": "object", "additionalProperties": {"type": "array", "items": {"$ref": "#/$defs/rule"}}},
+    "rules": {"type": "object", "additionalProperties": false, "properties": {"evaluation": {"const": "first-match"}, "scope-order": {"const": ["branch", "shared"]}, "no-match": {"type": "object", "additionalProperties": false, "properties": {"commit": {"const": "ignore"}, "recognized-merge": {"const": "ignore"}}, "required": ["commit", "recognized-merge"]}, "shared": {"type": "array", "items": {"$ref": "#/$defs/rule"}}}},
+    "output": {"type": "object", "additionalProperties": false, "properties": {"default-format": {"enum": ["json", "semver"]}, "metadata": {"const": []}}},
+    "validation": {"type": "object", "additionalProperties": false, "properties": {"unknown-keys": {"const": "error"}, "ambiguous-branch-match": {"const": "error"}, "ambiguous-rule-priority": {"const": "error"}, "inheritance-cycle": {"const": "error"}, "label-collision": {"const": "error"}}}
+  },
+  "$defs": {
+    "branch": {"type": "object", "additionalProperties": false, "required": ["match", "core", "prerelease"], "properties": {"match": {"type": "object", "additionalProperties": false, "oneOf": [{"required": ["exact"]}, {"required": ["glob"]}, {"required": ["regex"]}], "properties": {"exact": {"type": "string"}, "glob": {"type": "string"}, "regex": {"type": "string"}}}, "priority": {"type": "integer"}, "inherits": {"type": "string"}, "increment": {"enum": ["Major", "Minor", "Patch", "None", "Inherit"]}, "core": {"type": "object", "additionalProperties": false, "required": ["source"], "properties": {"source": {"enum": ["releases", "next-release", "branch-core", "fixed"]}, "of": {"type": "string"}, "increment": {"enum": ["Major", "Minor", "Patch", "None", "Inherit"]}, "value": {"type": "string"}}}, "prerelease": {"$ref": "#/$defs/prerelease"}, "rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}}, "use-rule-sets": {"type": "array", "items": {"type": "string"}}}},
+    "prerelease": {"type": "object", "additionalProperties": false, "properties": {"enabled": {"type": "boolean"}, "label": {"type": "string"}, "counter": {"type": "object", "additionalProperties": false, "properties": {"initial": {"type": "integer", "minimum": 0}, "origin": {"type": "object", "additionalProperties": false, "properties": {"kind": {"enum": ["fork", "release-boundary", "anchor"]}, "branch": {"type": "string"}, "projection": {"type": "string"}, "algorithm": {"type": "string"}, "ref": {"type": "string"}}}, "rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}}, "use-rule-sets": {"type": "array", "items": {"type": "string"}}, "reset": {"type": "object", "additionalProperties": false, "properties": {"on": {"type": "string"}, "branch": {"type": "string"}, "requires-source-role": {"type": "string"}, "value": {"type": "integer"}, "preserve-pending-events": {"type": "boolean"}}}}}}},
+    "rule": {"type": "object", "additionalProperties": false, "required": ["id", "priority", "when", "actions"], "properties": {"id": {"type": "string"}, "priority": {"type": "integer"}, "when": {"$ref": "#/$defs/condition"}, "actions": {"type": "array", "items": {"$ref": "#/$defs/action"}}}},
+    "condition": {"type": "object", "additionalProperties": false, "properties": {"event": {"enum": ["commit", "merge"]}, "source": {"$ref": "#/$defs/selector"}, "target": {"$ref": "#/$defs/selector"}, "message": {"type": "string"}, "author": {"type": "string"}, "paths": {"type": "array", "items": {"type": "string"}}, "trailers": {"type": "object", "additionalProperties": {"type": "string"}}, "all": {"type": "array", "items": {"$ref": "#/$defs/condition"}}, "any": {"type": "array", "items": {"$ref": "#/$defs/condition"}}, "not": {"$ref": "#/$defs/condition"}}},
+    "selector": {"type": "object", "additionalProperties": false, "properties": {"roles": {"type": "array", "items": {"type": "string"}}, "pattern": {"type": "string"}}},
+    "action": {"type": "object", "additionalProperties": false, "properties": {"release": {"type": "object", "additionalProperties": false, "properties": {"increment": {"type": "string"}, "boundary": {"type": "string"}}}, "bump-core": {"type": "object", "additionalProperties": false, "properties": {"increment": {"type": "string"}}}, "increment-counter": {"type": "object", "additionalProperties": false, "properties": {"by": {"type": "integer", "minimum": 1}}}, "set-counter": {"type": "object", "additionalProperties": false, "properties": {"value": {"type": "integer", "minimum": 0}}}, "ignore": {"type": "object"}, "fail": {"type": "object", "additionalProperties": false, "properties": {"message": {"type": "string"}}}}}
+  }
+}`
