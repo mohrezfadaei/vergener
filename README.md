@@ -20,6 +20,12 @@ vergener version --branch "$CI_COMMIT_REF_NAME" --format semver
 
 This example is for branch pipelines with the default detached checkout; merge-request pipelines need an explicit source-branch ref strategy. The job's `Vergener.yml` must be present at its repository root.
 
+## GitHub Actions image release
+
+The workflow runs tests, race tests, vet, and Go and container builds on pushes to `main`, pull requests targeting `main`, and tags beginning with `v`. A tag triggers publishing to `ghcr.io/<owner>/<repo>` **only** if it is exactly `vX.Y.Z` (without leading zeros) and points to a commit on `main`'s first-parent history. A plain push to `main` never publishes. GitHub sends tag pushes as separate events, so push the release tag after the commit is on `main`.
+
+The publish job uses `GITHUB_TOKEN` with `packages: write`; no additional registry credentials or variables are needed. For `v1.2.3`, the workflow pushes `1.2.3`, `1.2`, `1`, the tagged commit's full 40-character SHA, and `latest`. All five tags refer to the same image.
+
 ## Commands
 
 ```sh
