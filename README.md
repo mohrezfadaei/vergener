@@ -6,6 +6,20 @@ VerGener calculates semantic versions from immutable Git commits, two-parent mer
 
 Requires Go 1.27+ and Git. Run `./scripts/install.sh` from this checkout to build and install into `~/.local/bin`, or set `INSTALL_DIR=/path/to/bin` to choose another location. Make sure the install directory is on your `PATH`. Alternatively, run `go install ./cmd/vergener` or `go build -o vergener ./cmd/vergener`. Copy `Vergener.yml` to the root of the repository being versioned; create the initial `v1.0.0` tag once at its `1.0.0` anchor. Stable releases after that need no tags. Work with full, non-shallow history.
 
+## Docker image for GitLab CI
+
+Build with `just docker-build` (local tag `vergener:local`) or `just docker-build registry.example/namespace/vergener:0.0.1` for a registry tag. Other recipes include `just check`, `just validate`, and `just build`. The multi-stage image contains `vergener`, Git, CA certificates, and `/bin/sh`; it has no entrypoint so GitLab Runner can start its job shell. The image does not contain `Vergener.yml` or repository history: the CI checkout supplies both.
+
+In a GitLab branch pipeline, use `GIT_DEPTH: "0"` and make sure the checkout has the initial tag plus local `refs/heads/main`, `refs/heads/develop`, and the branch being evaluated. GitLab commonly checks out a detached commit; pass `--branch "$CI_COMMIT_REF_NAME"` explicitly. For example, before running `vergener version`, fetch the required refs and point the local target branch at the pipeline commit:
+
+```sh
+git fetch origin '+refs/heads/main:refs/heads/main' '+refs/heads/develop:refs/heads/develop' '+refs/tags/v1.0.0:refs/tags/v1.0.0'
+git update-ref "refs/heads/$CI_COMMIT_REF_NAME" "$CI_COMMIT_SHA"
+vergener version --branch "$CI_COMMIT_REF_NAME" --format semver
+```
+
+This example is for branch pipelines with the default detached checkout; merge-request pipelines need an explicit source-branch ref strategy. The job's `Vergener.yml` must be present at its repository root.
+
 ## Commands
 
 ```sh

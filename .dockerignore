@@ -1,0 +1,8 @@
+# Send only the Go sources needed to build the executable.
+*
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
